@@ -45,6 +45,8 @@ A production-quality, real-time multiplayer drawing and guessing game inspired b
   - Levenshtein distance calculation to privately notify players when their guess is close.
   - Automatically suppresses guessed words from chat so subsequent guessers cannot copy.
   - Blocks drawers from writing the secret word into chat.
+- **Fill Color Tool (Paint Bucket):** Scanline flood-fill algorithm with antialiasing tolerance, filling closed contours with synchronized real-time vector history and undo support.
+- **Democratic Vote Kick Moderation:** Contextual moderation menu with customizable reasons, live 30-second voting tally, democratic majority threshold calculation ($\lfloor N/2 \rfloor + 1$), host protection, self-kick prevention, room eviction, and rejoining blacklist enforcement.
 - **Web Audio Sound Effects:** Zero external audio assets—sound synthesis implemented entirely with the HTML5 Web Audio API (correct guess chimes, urgent timer ticks, turn notifications, game-over fanfares).
 - **Audio & Visual Celebration:** Confetti particle system and responsive 1st/2nd/3rd winner podium.
 - **Responsive Modern UI:** Modern design system built with Tailwind CSS, supporting desktop multi-column layouts and responsive mobile/tablet tab views.
@@ -370,6 +372,9 @@ node scripts/test-gameplay.js
 
 # 2. Run full multi-round lifecycle & winner test
 node scripts/test-full-game.js
+
+# 3. Run feature enhancements test (Flood Fill + Vote Kick System)
+node scripts/test-enhancements.js
 ```
 
 ---
@@ -377,7 +382,6 @@ node scripts/test-full-game.js
 ## 🚀 Future Enhancements
 
 - **Custom Word Packs:** Allow hosts to upload custom word lists for themed matches.
-- **Flood Fill Bucket Tool:** Implementation of scanline fill algorithm for coloring closed shapes.
 - **Voice Chat Integration:** Optional WebRTC spatial voice rooms.
 - **Persistent Global Leaderboards:** Long-term player stats and matchmaking rating.
 
