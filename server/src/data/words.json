@@ -1,0 +1,37 @@
+{
+  "animals": [
+    "cat", "dog", "elephant", "giraffe", "lion", "tiger", "bear", "rabbit", "monkey", "penguin",
+    "kangaroo", "dolphin", "whale", "octopus", "shark", "zebra", "panda", "koala", "hamster", "parrot",
+    "owl", "flamingo", "crocodile", "turtle", "frog", "snake", "chameleon", "butterfly", "bee", "peacock"
+  ],
+  "food": [
+    "pizza", "burger", "sushi", "taco", "sandwich", "pancake", "ice cream", "cupcake", "donut", "popcorn",
+    "apple", "banana", "strawberry", "watermelon", "pineapple", "chocolate", "cookie", "spaghetti", "hotdog", "cheese",
+    "croissant", "salad", "avocado", "broccoli", "carrot", "french fries", "waffle", "lollipop", "steak", "muffin"
+  ],
+  "objects": [
+    "clock", "umbrella", "backpack", "scissors", "guitar", "piano", "telescope", "microscope", "glasses", "camera",
+    "mirror", "lamp", "chair", "table", "bookshelf", "key", "flashlight", "toothbrush", "pillow", "hammer",
+    "screwdriver", "ladder", "candle", "wallet", "compass", "bell", "anchor", "suitcase", "crown", "sword"
+  ],
+  "technology": [
+    "laptop", "smartphone", "robot", "headphones", "drone", "rocket", "satellite", "gamepad", "television", "smartwatch",
+    "printer", "battery", "keyboard", "mouse", "solar panel", "antenna", "server", "microchip", "usb drive", "speaker"
+  ],
+  "nature": [
+    "mountain", "volcano", "waterfall", "river", "ocean", "forest", "desert", "rainbow", "tornado", "lightning",
+    "cloud", "sunflower", "cactus", "snowflake", "island", "cave", "glacier", "beach", "sunrise", "tree"
+  ],
+  "sports": [
+    "football", "basketball", "tennis", "baseball", "volleyball", "swimming", "bowling", "skateboarding", "skiing", "surfing",
+    "archery", "boxing", "golf", "badminton", "cycling", "karate", "hockey", "cricket", "running", "fishing"
+  ],
+  "places": [
+    "castle", "hospital", "school", "library", "airport", "lighthouse", "museum", "circus", "cinema", "bakery",
+    "supermarket", "stadium", "hotel", "pyramid", "bridge", "farm", "zoo", "amusement park", "police station", "bank"
+  ],
+  "daily_activities": [
+    "cooking", "sleeping", "reading", "dancing", "singing", "painting", "shopping", "gardening", "cleaning", "jogging",
+    "brushing teeth", "drinking water", "riding bike", "walking dog", "taking photo", "eating dinner", "playing games", "driving car"
+  ]
+}
