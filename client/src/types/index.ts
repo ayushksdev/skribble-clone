@@ -27,7 +27,7 @@ export interface Point {
   y: number;
 }
 
-export type DrawTool = 'brush' | 'eraser';
+export type DrawTool = 'brush' | 'eraser' | 'fill';
 
 export interface Stroke {
   id: string;
@@ -54,6 +54,13 @@ export interface DrawEndPayload {
   strokeId: string;
 }
 
+export interface DrawFillPayload {
+  strokeId: string;
+  tool: 'fill';
+  color: string;
+  point: Point;
+}
+
 export interface PublicGameState {
   phase: GamePhase;
   currentRound: number;
@@ -71,6 +78,28 @@ export interface PublicGameState {
   roundEndReason?: 'timer' | 'all_guessed' | 'drawer_left';
 }
 
+export interface VoteKickData {
+  targetId: string;
+  targetName: string;
+  initiatorId: string;
+  initiatorName: string;
+  reason?: string;
+  yesVotes: number;
+  noVotes: number;
+  requiredVotes: number;
+  totalEligible: number;
+  timeLeft: number;
+}
+
+export interface VoteKickResult {
+  targetId: string;
+  targetName: string;
+  passed: boolean;
+  yesVotes: number;
+  noVotes: number;
+  reason?: string;
+}
+
 export interface RoomData {
   id: string;
   code: string;
@@ -79,6 +108,7 @@ export interface RoomData {
   settings: RoomSettings;
   gameState: PublicGameState;
   isGameActive: boolean;
+  activeVote?: VoteKickData | null;
 }
 
 export interface PublicRoomInfo {

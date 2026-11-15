@@ -1,9 +1,12 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { useGame } from '../../context/GameContext';
-import { Pencil, Check, Crown, Trophy, WifiOff } from 'lucide-react';
+import { Pencil, Check, Crown, Trophy, WifiOff, UserX } from 'lucide-react';
+import { StartVoteModal } from './StartVoteModal';
+import type { PlayerData } from '../../types';
 
 export const PlayerList: React.FC = () => {
   const { room, gameState, player: mySelf } = useGame();
+  const [kickTarget, setKickTarget] = useState<PlayerData | null>(null);
 
   if (!room) return null;
 
@@ -29,11 +32,12 @@ export const PlayerList: React.FC = () => {
           const isDrawer = gameState?.currentDrawerId === p.id;
           const isMe = p.id === mySelf?.id;
           const rank = index + 1;
+          const canBeKicked = !p.isHost && !isMe && p.isConnected;
 
           return (
             <div
               key={p.id}
-              className={`flex items-center justify-between p-2.5 rounded-xl border transition-all ${
+              className={`group flex items-center justify-between p-2.5 rounded-xl border transition-all ${
                 p.hasGuessedCorrectly
                   ? 'bg-emerald-50/70 border-emerald-300'
                   : isDrawer
@@ -99,7 +103,7 @@ export const PlayerList: React.FC = () => {
                 </div>
               </div>
 
-              {/* Right: Drawer or Guessed badge */}
+              {/* Right: Drawer or Guessed badge + Kick button */}
               <div className="flex items-center gap-1.5 shrink-0">
                 {isDrawer && (
                   <div
@@ -120,11 +124,29 @@ export const PlayerList: React.FC = () => {
                     <span className="hidden sm:inline">Guessed</span>
                   </div>
                 )}
+
+                {/* Vote Kick Moderation Button */}
+                {canBeKicked && (
+                  <button
+                    type="button"
+                    onClick={() => setKickTarget(p)}
+                    className="opacity-0 group-hover:opacity-100 focus:opacity-100 p-1 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition-all"
+                    title={`Vote to kick ${p.name}`}
+                  >
+                    <UserX className="w-3.5 h-3.5" />
+                  </button>
+                )}
               </div>
             </div>
           );
         })}
       </div>
+
+      {/* Confirmation Dialog */}
+      <StartVoteModal
+        target={kickTarget}
+        onClose={() => setKickTarget(null)}
+      />
     </div>
   );
 };

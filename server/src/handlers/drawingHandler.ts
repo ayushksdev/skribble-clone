@@ -1,6 +1,13 @@
 import { Server, Socket } from 'socket.io';
 import { roomService } from '../services/roomService.js';
-import { DrawStartPayload, DrawMovePayload, DrawEndPayload, Stroke, Point } from '../types/index.js';
+import {
+  DrawStartPayload,
+  DrawMovePayload,
+  DrawEndPayload,
+  DrawFillPayload,
+  Stroke,
+  Point,
+} from '../types/index.js';
 
 // Active in-progress strokes on server by strokeId
 const activeStrokes = new Map<string, Stroke>();
@@ -100,6 +107,43 @@ export function registerDrawingHandlers(io: Server, socket: Socket) {
     }
 
     socket.to(`room:${room.code}`).emit('draw_end', data);
+  });
+
+  // Draw Fill (Paint Bucket Flood Fill)
+  socket.on('draw_fill', (data: DrawFillPayload) => {
+    const session = roomService.getPlayerSession(socket.id);
+    if (!session || !session.room.game) return;
+
+    const { room, player } = session;
+    const game = room.game;
+    if (!game) return;
+
+    // Strict validation: must be drawer and in DRAWING phase
+    if (game.phase !== 'DRAWING' || player.id !== game.currentDrawerId) {
+      return;
+    }
+
+    if (!data?.strokeId || !data.point) return;
+
+    const clampedPoint = clampNormalizedPoint(data.point);
+    const fillStroke: Stroke = {
+      id: data.strokeId,
+      tool: 'fill',
+      color: typeof data.color === 'string' ? data.color : '#000000',
+      size: 0,
+      points: [clampedPoint],
+    };
+
+    // Store in authoritative stroke history
+    game.addStroke(fillStroke);
+
+    // Broadcast fill event to all other clients in room
+    socket.to(`room:${room.code}`).emit('draw_fill', {
+      strokeId: data.strokeId,
+      tool: 'fill',
+      color: fillStroke.color,
+      point: clampedPoint,
+    });
   });
 
   // Canvas Clear

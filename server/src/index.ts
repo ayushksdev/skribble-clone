@@ -7,6 +7,7 @@ import { registerRoomHandlers, handlePlayerExit } from './handlers/roomHandler.j
 import { registerGameHandlers } from './handlers/gameHandler.js';
 import { registerDrawingHandlers } from './handlers/drawingHandler.js';
 import { registerChatHandlers } from './handlers/chatHandler.js';
+import { registerVoteHandlers } from './handlers/voteHandler.js';
 import { roomService } from './services/roomService.js';
 
 dotenv.config();
@@ -71,6 +72,7 @@ io.on('connection', (socket) => {
   registerGameHandlers(io, socket);
   registerDrawingHandlers(io, socket);
   registerChatHandlers(io, socket);
+  registerVoteHandlers(io, socket);
 
   // Handle disconnection
   socket.on('disconnect', () => {

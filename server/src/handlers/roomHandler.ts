@@ -156,6 +156,14 @@ export function handlePlayerExit(io: Server, socket: Socket, isManualLeave: bool
     return;
   }
 
+  // Check if active vote was targeting this player
+  if (room.activeVote && room.activeVote.targetId === player.id) {
+    room.cancelVote('Target player disconnected');
+    io.to(`room:${room.code}`).emit('vote_kick_cancelled', {
+      reason: `Vote cancelled because ${player.name} left the room.`,
+    });
+  }
+
   // Broadcast player left
   io.to(`room:${room.code}`).emit('player_left', player.id, newHostId);
   io.to(`room:${room.code}`).emit('room_updated', room.toJSON());

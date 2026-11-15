@@ -1,10 +1,23 @@
 import React, { useRef, useEffect, useState, useCallback } from 'react';
 import { socket } from '../../socket/socket';
-import type { Stroke, Point, DrawTool, DrawStartPayload, DrawMovePayload } from '../../types';
-import { renderStroke, redrawAllStrokes, getNormalizedCoords } from '../../utils/canvas';
+import type {
+  Stroke,
+  Point,
+  DrawTool,
+  DrawStartPayload,
+  DrawMovePayload,
+  DrawFillPayload,
+} from '../../types';
+import {
+  renderStroke,
+  redrawAllStrokes,
+  getNormalizedCoords,
+  floodFill,
+} from '../../utils/canvas';
 import {
   Paintbrush,
   Eraser,
+  PaintBucket,
   RotateCcw,
   Trash2,
 } from 'lucide-react';
@@ -127,6 +140,27 @@ export const DrawingCanvas: React.FC<DrawingCanvasProps> = ({ isDrawer }) => {
       // Stroke finalized
     }
 
+    function onDrawFill(data: DrawFillPayload) {
+      if (isDrawer) return;
+      const fillStroke: Stroke = {
+        id: data.strokeId,
+        tool: 'fill',
+        color: data.color,
+        size: 0,
+        points: [data.point],
+      };
+      strokesRef.current.push(fillStroke);
+
+      if (canvas) {
+        floodFill(
+          canvas,
+          data.point.x * canvas.width,
+          data.point.y * canvas.height,
+          data.color
+        );
+      }
+    }
+
     function onCanvasClear() {
       strokesRef.current = [];
       if (canvas) {
@@ -148,6 +182,7 @@ export const DrawingCanvas: React.FC<DrawingCanvasProps> = ({ isDrawer }) => {
     socket.on('draw_start', onDrawStart);
     socket.on('draw_move', onDrawMove);
     socket.on('draw_end', onDrawEnd);
+    socket.on('draw_fill', onDrawFill);
     socket.on('canvas_clear', onCanvasClear);
     socket.on('canvas_state', onCanvasState);
 
@@ -155,6 +190,7 @@ export const DrawingCanvas: React.FC<DrawingCanvasProps> = ({ isDrawer }) => {
       socket.off('draw_start', onDrawStart);
       socket.off('draw_move', onDrawMove);
       socket.off('draw_end', onDrawEnd);
+      socket.off('draw_fill', onDrawFill);
       socket.off('canvas_clear', onCanvasClear);
       socket.off('canvas_state', onCanvasState);
     };
@@ -182,16 +218,46 @@ export const DrawingCanvas: React.FC<DrawingCanvasProps> = ({ isDrawer }) => {
     };
   }, [isDrawer]);
 
-  // Pointer event handlers for drawing
+  // Pointer event handlers for drawing & filling
   const startDrawing = (e: React.PointerEvent<HTMLCanvasElement>) => {
     if (!isDrawer) return;
     const canvas = canvasRef.current;
     if (!canvas) return;
 
+    const normPoint = getNormalizedCoords(e.clientX, e.clientY, canvas);
+
+    // If using the Fill Bucket Tool: perform instantaneous flood fill
+    if (tool === 'fill') {
+      const pixelX = normPoint.x * canvas.width;
+      const pixelY = normPoint.y * canvas.height;
+
+      const filled = floodFill(canvas, pixelX, pixelY, color);
+      if (filled) {
+        const strokeId = `fill_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`;
+        const fillStroke: Stroke = {
+          id: strokeId,
+          tool: 'fill',
+          color,
+          size: 0,
+          points: [normPoint],
+        };
+
+        strokesRef.current.push(fillStroke);
+
+        socket.emit('draw_fill', {
+          strokeId,
+          tool: 'fill',
+          color,
+          point: normPoint,
+        });
+      }
+      return;
+    }
+
+    // Brush or Eraser tools
     canvas.setPointerCapture(e.pointerId);
     isDrawingRef.current = true;
 
-    const normPoint = getNormalizedCoords(e.clientX, e.clientY, canvas);
     const strokeId = `str_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`;
 
     const newStroke: Stroke = {
@@ -223,7 +289,7 @@ export const DrawingCanvas: React.FC<DrawingCanvasProps> = ({ isDrawer }) => {
   };
 
   const drawMove = (e: React.PointerEvent<HTMLCanvasElement>) => {
-    if (!isDrawer || !isDrawingRef.current || !currentStrokeRef.current) return;
+    if (!isDrawer || !isDrawingRef.current || !currentStrokeRef.current || tool === 'fill') return;
     const canvas = canvasRef.current;
     if (!canvas) return;
 
@@ -239,7 +305,7 @@ export const DrawingCanvas: React.FC<DrawingCanvasProps> = ({ isDrawer }) => {
   };
 
   const endDrawing = (e: React.PointerEvent<HTMLCanvasElement>) => {
-    if (!isDrawer || !isDrawingRef.current) return;
+    if (!isDrawer || !isDrawingRef.current || tool === 'fill') return;
     const canvas = canvasRef.current;
     if (canvas && e.pointerId) {
       try {
@@ -297,7 +363,8 @@ export const DrawingCanvas: React.FC<DrawingCanvasProps> = ({ isDrawer }) => {
       {/* Canvas Area */}
       <div
         ref={containerRef}
-        className="relative flex-1 bg-white cursor-crosshair min-h-[320px] w-full overflow-hidden"
+        className={`relative flex-1 bg-white min-h-[320px] w-full overflow-hidden ${tool === 'fill' ? 'cursor-cell' : 'cursor-crosshair'
+          }`}
       >
         <canvas
           ref={canvasRef}
@@ -305,9 +372,8 @@ export const DrawingCanvas: React.FC<DrawingCanvasProps> = ({ isDrawer }) => {
           onPointerMove={drawMove}
           onPointerUp={endDrawing}
           onPointerCancel={endDrawing}
-          className={`block w-full h-full ${
-            !isDrawer ? 'cursor-default pointer-events-none' : ''
-          }`}
+          className={`block w-full h-full ${!isDrawer ? 'cursor-default pointer-events-none' : ''
+            }`}
         />
 
         {!isDrawer && (
@@ -325,11 +391,10 @@ export const DrawingCanvas: React.FC<DrawingCanvasProps> = ({ isDrawer }) => {
             <button
               type="button"
               onClick={() => setTool('brush')}
-              className={`p-2 rounded-xl transition-colors ${
-                tool === 'brush'
+              className={`p-2 rounded-xl transition-colors ${tool === 'brush'
                   ? 'bg-brand-500 text-white shadow-sm'
                   : 'bg-white text-slate-700 hover:bg-slate-100 border border-slate-200'
-              }`}
+                }`}
               title="Paintbrush"
             >
               <Paintbrush className="w-5 h-5" />
@@ -338,14 +403,25 @@ export const DrawingCanvas: React.FC<DrawingCanvasProps> = ({ isDrawer }) => {
             <button
               type="button"
               onClick={() => setTool('eraser')}
-              className={`p-2 rounded-xl transition-colors ${
-                tool === 'eraser'
+              className={`p-2 rounded-xl transition-colors ${tool === 'eraser'
                   ? 'bg-brand-500 text-white shadow-sm'
                   : 'bg-white text-slate-700 hover:bg-slate-100 border border-slate-200'
-              }`}
+                }`}
               title="Eraser"
             >
               <Eraser className="w-5 h-5" />
+            </button>
+
+            <button
+              type="button"
+              onClick={() => setTool('fill')}
+              className={`p-2 rounded-xl transition-colors ${tool === 'fill'
+                  ? 'bg-brand-500 text-white shadow-sm'
+                  : 'bg-white text-slate-700 hover:bg-slate-100 border border-slate-200'
+                }`}
+              title="Fill Area (Paint Bucket)"
+            >
+              <PaintBucket className="w-5 h-5" />
             </button>
 
             <div className="h-6 w-px bg-slate-200 mx-1" />
@@ -376,9 +452,8 @@ export const DrawingCanvas: React.FC<DrawingCanvasProps> = ({ isDrawer }) => {
                 key={b.size}
                 type="button"
                 onClick={() => setSize(b.size)}
-                className={`w-8 h-8 rounded-lg flex items-center justify-center transition-colors ${
-                  size === b.size ? 'bg-slate-100' : 'hover:bg-slate-50'
-                }`}
+                className={`w-8 h-8 rounded-lg flex items-center justify-center transition-colors ${size === b.size ? 'bg-slate-100' : 'hover:bg-slate-50'
+                  }`}
                 title={b.label}
               >
                 <div
@@ -400,10 +475,10 @@ export const DrawingCanvas: React.FC<DrawingCanvasProps> = ({ isDrawer }) => {
                 type="button"
                 onClick={() => {
                   setColor(c);
-                  setTool('brush');
+                  if (tool === 'eraser') setTool('brush');
                 }}
                 className={`w-6 h-6 rounded-lg border transition-transform ${
-                  color === c && tool === 'brush'
+                  color === c && tool !== 'eraser'
                     ? 'scale-110 ring-2 ring-brand-500 ring-offset-1 border-slate-400'
                     : 'border-slate-200 hover:scale-105'
                 }`}

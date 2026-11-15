@@ -6,11 +6,13 @@ import { CreateRoomPage } from './pages/CreateRoomPage';
 import { JoinRoomPage } from './pages/JoinRoomPage';
 import { LobbyPage } from './pages/LobbyPage';
 import { GamePage } from './pages/GamePage';
+import { VoteKickPanel } from './components/game/VoteKickPanel';
 
 export const App: React.FC = () => {
   return (
     <BrowserRouter>
       <GameProvider>
+        <VoteKickPanel />
         <Routes>
           <Route path="/" element={<HomePage />} />
           <Route path="/create" element={<CreateRoomPage />} />

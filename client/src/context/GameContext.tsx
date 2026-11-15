@@ -9,6 +9,8 @@ import type {
   GameOverResult,
   RoomSettings,
   ApiResponse,
+  VoteKickData,
+  VoteKickResult,
 } from '../types';
 import {
   setStoredPlayerName,
@@ -27,6 +29,9 @@ interface GameContextType {
   chatMessages: ChatMessage[];
   roundEndResult: RoundEndResult | null;
   gameOverResult: GameOverResult | null;
+  activeVote: VoteKickData | null;
+  voteResult: VoteKickResult | null;
+  hasVoted: boolean;
   isConnected: boolean;
   error: string | null;
   isHost: boolean;
@@ -39,6 +44,8 @@ interface GameContextType {
   selectWord: (word: string) => void;
   sendChatMessage: (message: string) => void;
   playAgain: () => void;
+  startVoteKick: (targetId: string, reason?: string) => Promise<{ success: boolean; error?: string }>;
+  castVote: (vote: boolean) => Promise<{ success: boolean; error?: string }>;
   clearError: () => void;
 }
 
@@ -53,6 +60,9 @@ export const GameProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
   const [chatMessages, setChatMessages] = useState<ChatMessage[]>([]);
   const [roundEndResult, setRoundEndResult] = useState<RoundEndResult | null>(null);
   const [gameOverResult, setGameOverResult] = useState<GameOverResult | null>(null);
+  const [activeVote, setActiveVote] = useState<VoteKickData | null>(null);
+  const [voteResult, setVoteResult] = useState<VoteKickResult | null>(null);
+  const [hasVoted, setHasVoted] = useState<boolean>(false);
   const [isConnected, setIsConnected] = useState<boolean>(socket.connected);
   const [error, setError] = useState<string | null>(null);
 
@@ -70,6 +80,10 @@ export const GameProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     function onRoomUpdated(updatedRoom: RoomData) {
       setRoom(updatedRoom);
       setGameState(updatedRoom.gameState);
+
+      if (updatedRoom.activeVote) {
+        setActiveVote(updatedRoom.activeVote);
+      }
 
       const me = updatedRoom.players.find((p) => p.id === playerId);
       if (me) {
@@ -142,6 +156,42 @@ export const GameProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       setError(err.message);
     }
 
+    // Vote Kick Listeners
+    function onVoteKickStarted(data: VoteKickData) {
+      setActiveVote(data);
+      setVoteResult(null);
+      setHasVoted(data.initiatorId === playerId);
+    }
+
+    function onVoteKickUpdate(data: VoteKickData) {
+      setActiveVote(data);
+    }
+
+    function onVoteKickResult(result: VoteKickResult) {
+      setVoteResult(result);
+      setTimeout(() => {
+        setActiveVote(null);
+        setVoteResult(null);
+        setHasVoted(false);
+      }, 4000);
+    }
+
+    function onVoteKickCancelled() {
+      setActiveVote(null);
+      setVoteResult(null);
+      setHasVoted(false);
+    }
+
+    function onKickedFromRoom(data: { message: string }) {
+      alert(data.message || 'You have been removed from the room by community vote.');
+      setRoom(null);
+      setPlayer(null);
+      setGameState(null);
+      setActiveVote(null);
+      setStoredRoomCode('');
+      window.location.href = '/';
+    }
+
     socket.on('connect', onConnect);
     socket.on('disconnect', onDisconnect);
     socket.on('room_updated', onRoomUpdated);
@@ -154,6 +204,12 @@ export const GameProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     socket.on('chat_message', onChatMessage);
     socket.on('guess_result', onGuessResult);
     socket.on('room_error', onRoomError);
+
+    socket.on('vote_kick_started', onVoteKickStarted);
+    socket.on('vote_kick_update', onVoteKickUpdate);
+    socket.on('vote_kick_result', onVoteKickResult);
+    socket.on('vote_kick_cancelled', onVoteKickCancelled);
+    socket.on('kicked_from_room', onKickedFromRoom);
 
     return () => {
       socket.off('connect', onConnect);
@@ -168,6 +224,12 @@ export const GameProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       socket.off('chat_message', onChatMessage);
       socket.off('guess_result', onGuessResult);
       socket.off('room_error', onRoomError);
+
+      socket.off('vote_kick_started', onVoteKickStarted);
+      socket.off('vote_kick_update', onVoteKickUpdate);
+      socket.off('vote_kick_result', onVoteKickResult);
+      socket.off('vote_kick_cancelled', onVoteKickCancelled);
+      socket.off('kicked_from_room', onKickedFromRoom);
     };
   }, [playerId]);
 
@@ -188,6 +250,7 @@ export const GameProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
               setChatMessages([]);
               setRoundEndResult(null);
               setGameOverResult(null);
+              setActiveVote(null);
               resolve({ success: true });
             } else {
               setError(response.error || 'Failed to create room');
@@ -217,6 +280,7 @@ export const GameProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
               setChatMessages([]);
               setRoundEndResult(null);
               setGameOverResult(null);
+              setActiveVote(response.data.activeVote || null);
               resolve({ success: true });
             } else {
               setError(response.error || 'Failed to join room');
@@ -239,6 +303,7 @@ export const GameProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     setChatMessages([]);
     setRoundEndResult(null);
     setGameOverResult(null);
+    setActiveVote(null);
     setStoredRoomCode('');
   }, []);
 
@@ -279,6 +344,40 @@ export const GameProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     });
   }, []);
 
+  const startVoteKick = useCallback(
+    (targetId: string, reason?: string): Promise<{ success: boolean; error?: string }> => {
+      return new Promise((resolve) => {
+        socket.emit('vote_kick_start', { targetId, reason }, (res: ApiResponse<VoteKickData>) => {
+          if (res?.success) {
+            setHasVoted(true);
+            resolve({ success: true });
+          } else {
+            setError(res?.error || 'Failed to start vote kick.');
+            resolve({ success: false, error: res?.error });
+          }
+        });
+      });
+    },
+    []
+  );
+
+  const castVote = useCallback(
+    (vote: boolean): Promise<{ success: boolean; error?: string }> => {
+      return new Promise((resolve) => {
+        socket.emit('vote_kick_cast', { vote }, (res: ApiResponse) => {
+          if (res?.success) {
+            setHasVoted(true);
+            resolve({ success: true });
+          } else {
+            setError(res?.error || 'Failed to cast vote.');
+            resolve({ success: false, error: res?.error });
+          }
+        });
+      });
+    },
+    []
+  );
+
   const clearError = useCallback(() => {
     setError(null);
   }, []);
@@ -297,6 +396,9 @@ export const GameProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         chatMessages,
         roundEndResult,
         gameOverResult,
+        activeVote,
+        voteResult,
+        hasVoted,
         isConnected,
         error,
         isHost,
@@ -309,6 +411,8 @@ export const GameProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         selectWord,
         sendChatMessage,
         playAgain,
+        startVoteKick,
+        castVote,
         clearError,
       }}
     >

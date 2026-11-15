@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useGame } from '../context/GameContext';
 import { ChatBox } from '../components/chat/ChatBox';
+import { StartVoteModal } from '../components/game/StartVoteModal';
 import type { PlayerData } from '../types';
 import {
   Copy,
@@ -14,6 +15,7 @@ import {
   HelpCircle,
   LogOut,
   AlertCircle,
+  UserX,
 } from 'lucide-react';
 
 export const LobbyPage: React.FC = () => {
@@ -31,6 +33,7 @@ export const LobbyPage: React.FC = () => {
 
   const [copied, setCopied] = useState(false);
   const [isStarting, setIsStarting] = useState(false);
+  const [kickTarget, setKickTarget] = useState<PlayerData | null>(null);
 
   useEffect(() => {
     if (room && room.isGameActive && room.gameState.phase !== 'LOBBY') {
@@ -167,11 +170,12 @@ export const LobbyPage: React.FC = () => {
               <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3">
                 {room.players.map((p: PlayerData) => {
                   const isMe = p.id === player.id;
+                  const canBeKicked = !p.isHost && !isMe && p.isConnected;
 
                   return (
                     <div
                       key={p.id}
-                      className={`p-3.5 rounded-2xl border flex items-center justify-between transition-all ${
+                      className={`group p-3.5 rounded-2xl border flex items-center justify-between transition-all ${
                         isMe
                           ? 'bg-brand-50/40 border-brand-200'
                           : 'bg-slate-50/60 border-slate-200'
@@ -205,18 +209,29 @@ export const LobbyPage: React.FC = () => {
                         </div>
                       </div>
 
-                      {/* Ready Badge */}
-                      <div>
+                      {/* Ready Badge & Moderation Action */}
+                      <div className="flex items-center gap-2">
+                        {canBeKicked && (
+                          <button
+                            type="button"
+                            onClick={() => setKickTarget(p)}
+                            className="opacity-0 group-hover:opacity-100 focus:opacity-100 p-1 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition-all"
+                            title={`Vote to kick ${p.name}`}
+                          >
+                            <UserX className="w-4 h-4" />
+                          </button>
+                        )}
+
                         {p.isReady ? (
                           <div
-                            className="w-6 h-6 rounded-full bg-emerald-100 text-emerald-600 flex items-center justify-center"
+                            className="w-6 h-6 rounded-full bg-emerald-100 text-emerald-600 flex items-center justify-center shrink-0"
                             title="Ready"
                           >
                             <Check className="w-3.5 h-3.5 stroke-[3]" />
                           </div>
                         ) : (
                           <div
-                            className="w-6 h-6 rounded-full bg-slate-200 text-slate-400 flex items-center justify-center text-[10px] font-bold"
+                            className="w-6 h-6 rounded-full bg-slate-200 text-slate-400 flex items-center justify-center text-[10px] font-bold shrink-0"
                             title="Not Ready"
                           >
                             ...
@@ -280,6 +295,12 @@ export const LobbyPage: React.FC = () => {
           </div>
         </div>
       </div>
+
+      {/* Confirmation Modal */}
+      <StartVoteModal
+        target={kickTarget}
+        onClose={() => setKickTarget(null)}
+      />
     </div>
   );
 };
